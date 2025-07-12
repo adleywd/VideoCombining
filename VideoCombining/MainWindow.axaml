@@ -2,18 +2,36 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="100" d:DesignHeight="100"
+        mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="300"
+        MinWidth="500"
+        MinHeight="200"
         WindowStartupLocation="CenterScreen"
         SizeToContent="WidthAndHeight"
         x:Class="VideoCombining.MainWindow"
         Title="Video Combining By Aspect Ratio">
-    <StackPanel Margin="20" Spacing="10">
-        <TextBlock Text="Select or drop a folder with videos:" FontSize="16"/>
-    
-        <TextBox Name="FolderPathBox" IsReadOnly="True" Height="30"/>
 
-        <Button Content="Choose Folder" Click="ChooseFolder_Click" Width="150"/>
-    
-        <Button Content="Process Videos" Click="Process_Click" Width="150"/>
+    <StackPanel Margin="20" Spacing="10">
+        <TextBlock Text="Select or drop a folder with videos:" FontSize="16" />
+        <TextBlock Text="This will generate a combined folder with the combined videos by aspect ratio." FontSize="12" />
+
+        <TextBox Name="FolderPathBox" IsReadOnly="True" Height="30" />
+
+        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="10">
+            <Button Name="ChooseFolderButton" 
+                    Content="Choose Folder" 
+                    Click="ChooseFolder_Click" 
+                    Width="150" 
+                    HorizontalAlignment="Center" />
+
+            <Button Name="ProcessButton" 
+                    Content="Process Videos" 
+                    Click="Process_Click" 
+                    Width="150" 
+                    HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <ProgressBar Name="ProgressBar" Minimum="0" Maximum="100" Value="0" IsVisible="False" />
+
+        <TextBlock Name="StatusTextBlock" HorizontalAlignment="Center" />
     </StackPanel>
 </Window>

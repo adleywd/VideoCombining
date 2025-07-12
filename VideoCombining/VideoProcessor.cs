@@ -9,17 +9,30 @@ namespace VideoCombining;
 
 public static class VideoProcessor
 {
-    public static void ProcessVideos(string folderPath)
+    /// <summary>
+    /// Processes videos in the specified folder by grouping them according to their aspect ratios 
+    /// and combining each group into a single video file.
+    /// </summary>
+    /// <param name="folderPath">The path to the folder containing the videos to process.</param>
+    /// <param name="progress">An object to report progress back to the caller.</param>
+    /// <remarks>
+    /// This method scans the given folder for MP4 files, extracts their resolutions, and groups 
+    /// them by their aspect ratios. It then combines videos with the same aspect ratio into a
+    /// single video file.
+    /// </remarks>
+    public static void ProcessVideos(string folderPath, IProgress<ProgressReport> progress)
     {
+        progress.Report(new ProgressReport (PercentComplete: 0, Status: "Gathering video files..." ));
         var files = Directory.GetFiles(folderPath, "*.mp4");
 
         if (files.Length == 0)
         {
-            Console.WriteLine("No videos found.");
+            progress.Report(new ProgressReport( PercentComplete: 100, Status: "No MP4 videos found in the selected folder." ));
             return;
         }
 
         var validVideos = new List<VideoInfo>();
+        int filesProcessed = 0;
 
         foreach (var file in files)
         {
@@ -39,21 +52,29 @@ public static class VideoProcessor
             {
                 Console.WriteLine($"Failed to analyze {file}: {ex.Message}");
             }
+            finally
+            {
+                filesProcessed++;
+                int percentage = (int)((double)filesProcessed / files.Length * 50); // Analysis is 50% of the work
+                progress.Report(new ProgressReport( PercentComplete: percentage, Status: $"Analyzing video {filesProcessed} of {files.Length}..." ));
+            }
         }
 
-        var groups = validVideos.GroupBy(v => v.AspectRatio);
+        var groups = validVideos.GroupBy(v => v.AspectRatio).ToList();
 
         string combinedFolder = Path.Combine(folderPath, "Combined");
         Directory.CreateDirectory(combinedFolder);
 
+        int groupsProcessed = 0;
         foreach (var group in groups)
         {
             string aspect = group.Key;
-            string tempListPath = Path.Combine(folderPath, $"concat_{aspect}.txt");
+            string sanitizedAspect = aspect.Replace(':', '-');
+            string tempListPath = Path.Combine(combinedFolder, $"concat_{sanitizedAspect}.txt");
 
             File.WriteAllLines(tempListPath, group.Select(v => $"file '{v.FilePath.Replace("'", "'\\''")}'"));
 
-            string outputPath = Path.Combine(combinedFolder, $"combined_{aspect.Replace(':', '-')}.mp4");
+            string outputPath = Path.Combine(combinedFolder, $"combined_{sanitizedAspect}.mp4");
 
             try
             {
@@ -66,13 +87,26 @@ public static class VideoProcessor
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to combine group {aspect}: {ex.Message}");
+                progress.Report(new ProgressReport( PercentComplete: 100, Status: $"Failed to combine group {aspect}." ));
             }
-
-            File.Delete(tempListPath.Replace(".txt", ""));
+            finally
+            {
+                groupsProcessed++;
+                int percentage = 50 + (int)((double)groupsProcessed / groups.Count * 50); // Combining is the other 50%
+                progress.Report(new ProgressReport( PercentComplete: percentage, Status: $"Combining group {groupsProcessed} of {groups.Count} ({aspect})..." ));
+                File.Delete(tempListPath);
+            }
         }
+
+        progress.Report(new ProgressReport( PercentComplete: 100, Status: "Processing complete!" ));
     }
 
 
+    /// <summary>
+    /// Extracts the video resolution from an FFmpeg analysis of the given file.
+    /// </summary>
+    /// <param name="file">The file to extract the resolution from</param>
+    /// <returns>The resolution of the video as a (width, height) tuple, or (0, 0) if resolution extraction fails.</returns>
     private static (int width, int height) GetVideoResolution(string file)
     {
         string output = RunFFmpeg($"-i \"{file}\"", captureError: true);
@@ -89,6 +123,12 @@ public static class VideoProcessor
         return (0, 0);
     }
 
+    /// <summary>
+    /// Runs ffmpeg with the given arguments and returns the output from stderr, if <paramref name="captureError"/> is true.
+    /// </summary>
+    /// <param name="args">The arguments to pass to ffmpeg.</param>
+    /// <param name="captureError">If true, the output from stderr is captured and returned. If false, an empty string is returned.</param>
+    /// <returns>The output from stderr if <paramref name="captureError"/> is true, or an empty string otherwise.</returns>
     private static string RunFFmpeg(string args, bool captureError = false)
     {
         var psi = new ProcessStartInfo

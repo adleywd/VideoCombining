@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,32 +27,42 @@ public partial class MainWindow : Window
 
     private async void Process_Click(object? sender, RoutedEventArgs e)
     {
-        var path = FolderPathBox.Text; // <-- Capture na thread correta
+        var path = FolderPathBox.Text;
 
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
         {
-            await MessageBox("Invalid folder selected.");
+            StatusTextBlock.Text = "Invalid folder selected.";
             return;
         }
 
-        await Task.Run(() => VideoProcessor.ProcessVideos(path)).ConfigureAwait(true);
+        // Setup UI for processing state
+        ProcessButton.IsEnabled = false;
+        ChooseFolderButton.IsEnabled = false;
+        ProgressBar.IsVisible = true;
+        ProgressBar.Value = 0;
+        StatusTextBlock.Text = "Starting...";
 
-        await MessageBox("Video processing complete.").ConfigureAwait(false);
-    }
-
-    private async Task MessageBox(string message)
-    {
-        var dlg = new Window
+        try
         {
-            Width = 300,
-            Height = 100,
-            Content = new TextBlock
+            var progress = new Progress<ProgressReport>(report =>
             {
-                Text = message,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
-            }
-        };
-        await dlg.ShowDialog(this).ConfigureAwait(false);
+                ProgressBar.Value = report.PercentComplete;
+                StatusTextBlock.Text = report.Status;
+            });
+
+            await Task.Run(() => VideoProcessor.ProcessVideos(path, progress));
+        }
+        catch (Exception ex)
+        {
+            // Handle any unexpected errors from the processing task
+            StatusTextBlock.Text = $"An error occurred: {ex.Message}";
+        }
+        finally
+        { 
+            // Restore UI to idle state
+            ProcessButton.IsEnabled = true;
+            ChooseFolderButton.IsEnabled = true;
+            ProgressBar.IsVisible = false;
+        }
     }
 }
