@@ -15,12 +15,14 @@ public static class VideoProcessor
     /// </summary>
     /// <param name="folderPath">The path to the folder containing the videos to process.</param>
     /// <param name="progress">An object to report progress back to the caller.</param>
+    /// <param name="combineVideos">Whether to combine all videos into a single file.</param>
+    /// <param name="deleteTempFiles">Whether to delete temporary files after processing.</param>
     /// <remarks>
     /// This method scans the given folder for MP4 files, extracts their resolutions, and groups 
     /// them by their aspect ratios. It then combines videos with the same aspect ratio into a
     /// single video file.
     /// </remarks>
-    public static void ProcessVideos(string folderPath, IProgress<ProgressReport> progress)
+    public static void ProcessVideos(string folderPath, IProgress<ProgressReport> progress, bool combineVideos, bool deleteTempFiles)
     {
         progress.Report(new ProgressReport (PercentComplete: 0, Status: "Gathering video files..." ));
         var files = Directory.GetFiles(folderPath, "*.mp4");
@@ -55,11 +57,83 @@ public static class VideoProcessor
             finally
             {
                 filesProcessed++;
-                int percentage = (int)((double)filesProcessed / files.Length * 50); // Analysis is 50% of the work
+                int percentage = (int)((double)filesProcessed / files.Length * 25); // Analysis is 25% of the work
                 progress.Report(new ProgressReport( PercentComplete: percentage, Status: $"Analyzing video {filesProcessed} of {files.Length}..." ));
             }
         }
 
+        if (combineVideos)
+        {
+            CombineAllVideos(folderPath, validVideos, progress, deleteTempFiles);
+        }
+        else
+        {
+            CombineVideosByAspectRatio(folderPath, validVideos, progress);
+        }
+
+        progress.Report(new ProgressReport(PercentComplete: 100, Status: "Processing complete!"));
+    }
+
+    private static void CombineAllVideos(string folderPath, List<VideoInfo> videos, IProgress<ProgressReport> progress, bool deleteTempFiles)
+    {
+        if (videos.Count == 0) return;
+
+        // Determine the target resolution (max width and max height)
+        int maxWidth = videos.Max(v => v.Width);
+        int maxHeight = videos.Max(v => v.Height);
+
+        string tempFolder = Path.Combine(folderPath, "TempScaledVideos");
+        Directory.CreateDirectory(tempFolder);
+
+        var scaledVideoPaths = new List<string>();
+        try
+        {
+            for (int i = 0; i < videos.Count; i++)
+            {
+                var video = videos[i];
+                int percentage = 25 + (int)((double)i / videos.Count * 50); // Scaling is 50% of the work
+                progress.Report(new ProgressReport(PercentComplete: percentage, Status: $"Processing video {i + 1} of {videos.Count}..."));
+
+                string outputPaddedPath = Path.Combine(tempFolder, $"padded_{i}.mp4");
+                // Scale the video to fit within maxWidth x maxHeight, preserving aspect ratio, and pad with black bars.
+                string ffmpegArgs = $"-i \"{video.FilePath}\" -vf \"scale={maxWidth}:{maxHeight}:force_original_aspect_ratio=decrease,pad={maxWidth}:{maxHeight}:-1:-1:color=black\" -c:a aac -b:a 128k -y \"{outputPaddedPath}\"";
+                RunFFmpeg(ffmpegArgs);
+                scaledVideoPaths.Add(outputPaddedPath);
+            }
+
+            progress.Report(new ProgressReport(PercentComplete: 75, Status: "Combining all videos..."));
+
+            string combinedFolder = Path.Combine(folderPath, "Combined");
+            Directory.CreateDirectory(combinedFolder);
+
+            string tempListPath = Path.Combine(tempFolder, "concat_all.txt");
+            File.WriteAllLines(tempListPath, scaledVideoPaths.Select(p => $"file '{p.Replace("\\", "/")}'"));
+
+            string outputPath = Path.Combine(combinedFolder, "combined_all.mp4");
+            string concatArgs = $"-f concat -safe 0 -i \"{tempListPath}\" -c copy -y \"{outputPath}\"";
+            RunFFmpeg(concatArgs);
+
+            Console.WriteLine($"Combined all videos to: {outputPath}");
+        }
+        finally
+        {
+            if (deleteTempFiles)
+            {
+                progress.Report(new ProgressReport(PercentComplete: 95, Status: "Cleaning up temporary files..."));
+                try
+                {
+                    Directory.Delete(tempFolder, true);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Could not delete temp folder: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    private static void CombineVideosByAspectRatio(string folderPath, List<VideoInfo> validVideos, IProgress<ProgressReport> progress)
+    {
         var groups = validVideos.GroupBy(v => v.AspectRatio).ToList();
 
         string combinedFolder = Path.Combine(folderPath, "Combined");
@@ -72,7 +146,7 @@ public static class VideoProcessor
             string sanitizedAspect = aspect.Replace(':', '-');
             string tempListPath = Path.Combine(combinedFolder, $"concat_{sanitizedAspect}.txt");
 
-            File.WriteAllLines(tempListPath, group.Select(v => $"file '{v.FilePath.Replace("'", "'\\''")}'"));
+            File.WriteAllLines(tempListPath, group.Select(v => $"file '{v.FilePath.Replace("\\", "/")}'"));
 
             string outputPath = Path.Combine(combinedFolder, $"combined_{sanitizedAspect}.mp4");
 
@@ -87,29 +161,26 @@ public static class VideoProcessor
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to combine group {aspect}: {ex.Message}");
-                progress.Report(new ProgressReport( PercentComplete: 100, Status: $"Failed to combine group {aspect}." ));
+                progress.Report(new ProgressReport(PercentComplete: 100, Status: $"Failed to combine group {aspect}."));
             }
             finally
             {
                 groupsProcessed++;
-                int percentage = 50 + (int)((double)groupsProcessed / groups.Count * 50); // Combining is the other 50%
-                progress.Report(new ProgressReport( PercentComplete: percentage, Status: $"Combining group {groupsProcessed} of {groups.Count} ({aspect})..." ));
+                int percentage = 25 + (int)((double)groupsProcessed / groups.Count * 75); // Combining is 75% of the work
+                progress.Report(new ProgressReport(PercentComplete: percentage, Status: $"Combining group {groupsProcessed} of {groups.Count} ({aspect})..."));
                 File.Delete(tempListPath);
             }
         }
-
-        progress.Report(new ProgressReport( PercentComplete: 100, Status: "Processing complete!" ));
     }
-
 
     /// <summary>
     /// Extracts the video resolution from an FFmpeg analysis of the given file.
     /// </summary>
     /// <param name="file">The file to extract the resolution from</param>
     /// <returns>The resolution of the video as a (width, height) tuple, or (0, 0) if resolution extraction fails.</returns>
-    private static (int width, int height) GetVideoResolution(string file)
+    private static (int width, int height) GetVideoResolution(string filePath)
     {
-        string output = RunFFmpeg($"-i \"{file}\"", captureError: true);
+        string output = RunFFmpeg($"-i \"{filePath}\"", captureError: true);
 
         var match = Regex.Match(output, @"Stream #\d+:\d+.*Video:.*?(\d{2,5})x(\d{2,5})", RegexOptions.IgnoreCase);
         if (match.Success)
@@ -119,7 +190,7 @@ public static class VideoProcessor
             return (width, height);
         }
 
-        Console.WriteLine($"Could not extract resolution for: {file}");
+        Console.WriteLine($"Could not extract resolution for: {filePath}");
         return (0, 0);
     }
 

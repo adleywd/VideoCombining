@@ -1,6 +1,6 @@
-# Video Combining By Aspect Ratio
+# Video Combiner
 
-This is a avalonia application to combine videos based on aspect ratio. (Only tested in Windows)
+This is an Avalonia application for Windows that allows you to combine multiple videos. You can either group videos by their aspect ratio and combine them, or merge all videos into a single file while preserving each video's original aspect ratio by adding padding.
 
 ## Pre-requisites
 
@@ -8,19 +8,26 @@ This is a avalonia application to combine videos based on aspect ratio. (Only te
 
 ## Usage
 
-1. Select or drop a folder with videos.
-2. Click the "Process Videos" button to start the processing.
-3. The application will generate a combined folder with the combined videos by aspect ratio.
+1.  Select or drop a folder containing your video files.
+2.  Choose your desired function:
+    *   **Combine by Aspect Ratio**: Leave the checkbox unchecked. The application will group videos with the same aspect ratio and combine each group into a separate file.
+    *   **Merge All Videos**: Check the "Merge all videos into a single file" checkbox. This will combine all videos into one file, preserving their original aspect ratios with black borders.
+3.  Click the "Process Videos" button to start.
+4.  A `Combined` folder will be created in the source directory containing the output video(s).
 
 ## Features
 
-- Supports processing videos in a folder.
-- Generates a combined folder with the combined videos by aspect ratio.
-- Displays a progress bar to show the progress of the processing.
+- **Two Combining Modes**: 
+  - Combine videos by aspect ratio into separate files.
+  - Merge all videos in a folder into a single file.
+- **Aspect Ratio Preservation**: Keeps the original aspect ratio of all videos when merging by adding padding (black bars).
+- **Progress Reporting**: Displays a progress bar and status updates during processing.
+- **Temp File Management**: Includes an option to automatically delete temporary files after processing.
 
 ## Limitations
 
-- The application assumes that the videos are in the same folder.
+- The application currently only processes `.mp4` files.
+- It assumes all videos to be processed are in the same folder.
 
 ## Contributing
 

@@ -35,6 +35,9 @@ public partial class MainWindow : Window
             return;
         }
 
+        var combineVideos = CombineVideosCheckBox.IsChecked ?? false;
+        var deleteTempFiles = DeleteTempFilesCheckBox.IsChecked ?? false;
+
         // Setup UI for processing state
         ProcessButton.IsEnabled = false;
         ChooseFolderButton.IsEnabled = false;
@@ -50,7 +53,7 @@ public partial class MainWindow : Window
                 StatusTextBlock.Text = report.Status;
             });
 
-            await Task.Run(() => VideoProcessor.ProcessVideos(path, progress));
+            await Task.Run(() => VideoProcessor.ProcessVideos(path, progress, combineVideos, deleteTempFiles));
         }
         catch (Exception ex)
         {

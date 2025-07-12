@@ -8,11 +8,11 @@
         WindowStartupLocation="CenterScreen"
         SizeToContent="WidthAndHeight"
         x:Class="VideoCombining.MainWindow"
-        Title="Video Combining By Aspect Ratio">
+        Title="Video Combiner">
 
     <StackPanel Margin="20" Spacing="10">
         <TextBlock Text="Select or drop a folder with videos:" FontSize="16" />
-        <TextBlock Text="This will generate a combined folder with the combined videos by aspect ratio." FontSize="12" />
+        <TextBlock Text="Combine videos by aspect ratio or merge all into a single file." FontSize="12" />
 
         <TextBox Name="FolderPathBox" IsReadOnly="True" Height="30" />
 
@@ -28,6 +28,16 @@
                     Click="Process_Click" 
                     Width="150" 
                     HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Spacing="5" HorizontalAlignment="Center" Margin="0,5,0,0">
+            <CheckBox Name="CombineVideosCheckBox" 
+                      Content="Merge all videos into a single file (preserves aspect ratio)" 
+                      HorizontalAlignment="Left" />
+            <CheckBox Name="DeleteTempFilesCheckBox" 
+                      Content="Delete temporary files after combining" 
+                      IsChecked="True"
+                      HorizontalAlignment="Left" />
         </StackPanel>
 
         <ProgressBar Name="ProgressBar" Minimum="0" Maximum="100" Value="0" IsVisible="False" />
