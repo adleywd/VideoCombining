@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="100" d:DesignHeight="100"
+        WindowStartupLocation="CenterScreen"
+        SizeToContent="WidthAndHeight"
+        x:Class="VideoCombining.MainWindow"
+        Title="Video Combining By Aspect Ratio">
+    <StackPanel Margin="20" Spacing="10">
+        <TextBlock Text="Select or drop a folder with videos:" FontSize="16"/>
+    
+        <TextBox Name="FolderPathBox" IsReadOnly="True" Height="30"/>
+
+        <Button Content="Choose Folder" Click="ChooseFolder_Click" Width="150"/>
+    
+        <Button Content="Process Videos" Click="Process_Click" Width="150"/>
+    </StackPanel>
+</Window>
