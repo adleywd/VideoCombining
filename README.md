@@ -2,6 +2,10 @@
 
 This is a avalonia application to combine videos based on aspect ratio. (Only tested in Windows)
 
+## Pre-requisites
+
+- FFmpeg installed and in the system path (https://ffmpeg.org/download.html)
+
 ## Usage
 
 1. Select or drop a folder with videos.
